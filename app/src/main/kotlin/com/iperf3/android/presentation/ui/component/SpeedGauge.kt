@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -17,6 +19,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -80,6 +83,11 @@ fun SpeedGauge(
     // Format the speed text
     val (speedText, unitText) = formatSpeed(currentSpeed)
 
+    // Read theme colors at composable level for Canvas use
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val isDark = isSystemInDarkTheme()
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -123,7 +131,11 @@ fun SpeedGauge(
             )
 
             // --- Background arc (track) ---
-            val trackColor = if (isActive) Color(0xFF37474F) else Color(0xFF263238)
+            val trackColor = if (isDark) {
+                if (isActive) Color(0xFF37474F) else Color(0xFF263238)
+            } else {
+                if (isActive) Color(0xFFCFD8DC) else Color(0xFFE0E0E0)
+            }
             drawArc(
                 color = trackColor,
                 startAngle = 180f,
@@ -169,6 +181,8 @@ fun SpeedGauge(
                 radius = radius,
                 strokeWidth = strokeWidth,
                 isActive = isActive,
+                onSurface = onSurface,
+                onSurfaceVariant = onSurfaceVariant,
             )
 
             // --- Needle ---
@@ -179,10 +193,11 @@ fun SpeedGauge(
                 radius = radius,
                 strokeWidth = strokeWidth,
                 isActive = isActive,
+                onSurface = onSurface,
             )
 
             // --- Center dot ---
-            val dotColor = if (isActive) NeedleActiveColor else NeedleColor.copy(alpha = 0.6f)
+            val dotColor = if (isActive) onSurface else onSurfaceVariant.copy(alpha = 0.6f)
             drawCircle(
                 color = dotColor,
                 radius = strokeWidth * 0.7f,
@@ -197,6 +212,8 @@ fun SpeedGauge(
                 centerY = centerY,
                 canvasWidth = canvasWidth,
                 isActive = isActive,
+                onSurface = onSurface,
+                onSurfaceVariant = onSurfaceVariant,
             )
         }
     }
@@ -213,11 +230,13 @@ private fun DrawScope.drawTickMarks(
     radius: Float,
     strokeWidth: Float,
     isActive: Boolean,
+    onSurface: Color,
+    onSurfaceVariant: Color,
 ) {
     val tickLength = strokeWidth * 1.2f
     val labelRadius = radius + strokeWidth * 2.5f
-    val tickColor = if (isActive) Color.White.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.3f)
-    val labelColor = if (isActive) Color.White.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.35f)
+    val tickColor = if (isActive) onSurface.copy(alpha = 0.7f) else onSurfaceVariant.copy(alpha = 0.3f)
+    val labelColor = if (isActive) onSurface.copy(alpha = 0.8f) else onSurfaceVariant.copy(alpha = 0.35f)
 
     for (tick in ticks) {
         val fraction = tick.value / maxSpeed
@@ -246,7 +265,7 @@ private fun DrawScope.drawTickMarks(
             labelX,
             labelY + strokeWidth * 0.3f,
             android.graphics.Paint().apply {
-                color = labelColor.hashCode()
+                color = labelColor.toArgb()
                 textSize = strokeWidth * 0.85f
                 textAlign = android.graphics.Paint.Align.CENTER
                 isAntiAlias = true
@@ -269,10 +288,11 @@ private fun DrawScope.drawNeedle(
     radius: Float,
     strokeWidth: Float,
     isActive: Boolean,
+    onSurface: Color,
 ) {
     val needleLength = radius * 0.78f
     val needleAngleDeg = 180f + sweepAngle
-    val needleColor = if (isActive) NeedleActiveColor else NeedleColor.copy(alpha = 0.5f)
+    val needleColor = if (isActive) onSurface else onSurface.copy(alpha = 0.5f)
 
     rotate(degrees = needleAngleDeg, pivot = Offset(centerX, centerY)) {
         drawLine(
@@ -295,13 +315,14 @@ private fun DrawScope.drawSpeedText(
     centerY: Float,
     canvasWidth: Float,
     isActive: Boolean,
+    onSurface: Color,
+    onSurfaceVariant: Color,
 ) {
+    val speedColor = if (isActive) onSurface else onSurfaceVariant.copy(alpha = 0.5f)
+    val unitColor = if (isActive) onSurfaceVariant else onSurfaceVariant.copy(alpha = 0.35f)
+
     val speedPaint = android.graphics.Paint().apply {
-        color = if (isActive) {
-            android.graphics.Color.WHITE
-        } else {
-            android.graphics.Color.argb(100, 255, 255, 255)
-        }
+        color = speedColor.toArgb()
         textSize = canvasWidth * 0.10f
         textAlign = android.graphics.Paint.Align.CENTER
         isAntiAlias = true
@@ -312,11 +333,7 @@ private fun DrawScope.drawSpeedText(
     }
 
     val unitPaint = android.graphics.Paint().apply {
-        color = if (isActive) {
-            android.graphics.Color.argb(200, 255, 255, 255)
-        } else {
-            android.graphics.Color.argb(80, 255, 255, 255)
-        }
+        color = unitColor.toArgb()
         textSize = canvasWidth * 0.04f
         textAlign = android.graphics.Paint.Align.CENTER
         isAntiAlias = true
